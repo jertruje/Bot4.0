@@ -1,78 +1,573 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Swap ETH → STETH (automático)</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simulador de Investimentos B3 - Bot Trader & Manual</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; margin-top: 80px; background: #f2f2f2; padding: 20px; }
-    h1 { font-size: 22px; }
-    #status { margin-top: 30px; font-size: 16px; color: #333; }
-  </style>
-</head>
-<body>
-  <h1>Fazendo swap automático de ETH para STETH</h1>
-  <div id="status">⏳ Aguardando confirmação na MetaMask...</div>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
-  <script>
-    const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
-    const WETH = "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2";
-    const STETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      background: #f5f7fa;
+      color: #2c3e50;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-    const ABI = [
-      {
-        "inputs": [
-          { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
-          { "internalType": "address[]", "name": "path", "type": "address[]" },
-          { "internalType": "address", "name": "to", "type": "address" },
-          { "internalType": "uint256", "name": "deadline", "type": "uint256" }
-        ],
-        "name": "swapExactETHForTokens",
-        "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
-        "stateMutability": "payable",
-        "type": "function"
+    header {
+      background: #34495e;
+      color: #ecf0f1;
+      padding: 20px 0;
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+
+    nav {
+      background: #2c3e50;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      color: #bdc3c7;
+      padding: 15px 25px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+
+    nav button:hover,
+    nav button.active {
+      color: #1abc9c;
+      border-bottom: 3px solid #1abc9c;
+    }
+
+    main {
+      flex-grow: 1;
+      max-width: 900px;
+      margin: 30px auto;
+      background: white;
+      border-radius: 12px;
+      padding: 30px 40px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.07);
+    }
+
+    section { display: none; }
+    section.active { display: block; }
+
+    label {
+      display: block;
+      margin: 15px 0 6px;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    select, input[type="number"], input[type="email"] {
+      width: 100%;
+      padding: 12px 15px;
+      font-size: 1rem;
+      border: 1.8px solid #ddd;
+      border-radius: 8px;
+      transition: border-color 0.3s ease;
+    }
+
+    select:focus, input[type="number"]:focus, input[type="email"]:focus {
+      border-color: #1abc9c;
+      outline: none;
+    }
+
+    button {
+      margin-top: 20px;
+      background: #1abc9c;
+      border: none;
+      padding: 15px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 100%;
+      box-shadow: 0 6px 12px rgba(26, 188, 156, 0.5);
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background: #16a085;
+    }
+
+    #log, #logManual {
+      margin-top: 20px;
+      background: #ecf0f1;
+      height: 200px;
+      padding: 15px;
+      overflow-y: auto;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #34495e;
+      white-space: pre-wrap;
+    }
+
+    .status {
+      margin-top: 25px;
+      padding: 15px 20px;
+      background: #d1f0e7;
+      border-radius: 12px;
+      font-weight: 600;
+      color: #16a085;
+      display: flex;
+      justify-content: space-around;
+      font-size: 1.1rem;
+    }
+
+    canvas {
+      margin-top: 30px;
+      max-width: 100%;
+      height: 280px !important;
+    }
+
+    h1, h2 {
+      color: #34495e;
+      margin-bottom: 15px;
+    }
+
+    #sobre p, #ajuda p, #sobre ul {
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #555;
+    }
+
+    #sobre ul {
+      margin-left: 20px;
+      list-style-type: disc;
+    }
+
+    @media (max-width: 600px) {
+      main {
+        padding: 20px;
+        margin: 20px;
       }
-    ];
+      nav button {
+        flex: 1 1 100%;
+        text-align: center;
+      }
+    }
+  </style>
+  
+</head>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCC-Bmx4BVYU3KKLoo41zGFatBv59gsmo0",
+    authDomain: "robo-9bb99.firebaseapp.com",
+    databaseURL: "robo-9bb99.firebasestorage.app",
+    projectId: "robo-9bb99",
+    storageBucket: "robo-9bb99.firebasestorage.app",
+    messagingSenderId: "786619724725",
+      appId: "1:786619724725:web:ea8a14cb2cf20f7e469ffc"
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
 
-    async function iniciarSwap() {
-      const status = document.getElementById("status");
+<body>
+  <div id="loginContainer" style="padding: 40px; max-width: 400px; margin: 50px auto; background: white; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+  <h2 style="text-align:center;">🔐 Login ou Cadastro</h2>
+  <label for="usuario">E-mail:</label>
+  <input type="email" id="usuario" placeholder="Digite seu e-mail" />
 
-      if (!window.ethereum) {
-        status.innerText = "❌ MetaMask não detectada. Use o navegador interno do app MetaMask.";
+  <label for="senha">Senha:</label>
+  <input type="password" id="senha" placeholder="Digite sua senha" />
+
+  <button onclick="logar()">Entrar</button>
+    <button onclick="usarConvidado()" style="margin-top:15px; width:100%; background:#999;">Usar como convidado</button>
+  <p id="erroLogin" style="color:red; text-align:center;"></p>
+</div>
+
+<header>
+  Simulador de Investimentos B3 <span style="color:#1abc9c;">⚖️</span>
+</header>
+
+<nav>
+  <button class="active" onclick="mostrar('simulador', this)">Bot Trader</button>
+  <button onclick="mostrar('investimentoManual', this)">Investir Manualmente</button>
+  <button onclick="mostrar('sobre', this)">Sobre o Projeto</button>
+  <button onclick="mostrar('ajuda', this)">Ajuda</button>
+</nav>
+
+<main>
+  <script>
+  document.querySelector("main").style.display = "none";
+</script>
+
+  <section id="simulador" class="active">
+    <h1>🤖 Bot Trader Automático</h1>
+    <label for="acao">Escolha uma Ação da B3:</label>
+    <select id="acao">
+      <option value="PETR4.SA">PETR4</option>
+      <option value="VALE3.SA">VALE3</option>
+      <option value="ITUB4.SA">ITUB4</option>
+      <option value="B3SA3.SA">B3SA3</option>
+    </select>
+
+    <label for="valor">Valor por Compra (R$):</label>
+    <input type="number" id="valor" value="1" min="1" />
+
+    <label for="email">Seu e-mail para notificações:</label>
+    <input type="email" id="email" placeholder="seu@email.com" />
+
+    <button onclick="iniciarBot()">▶️ Iniciar Bot Trader</button>
+
+    <canvas id="grafico" height="280"></canvas>
+
+    <h2>📋 Log de Operações:</h2>
+    <div id="log"></div>
+
+    <div class="status" id="statusSimulador">
+      <div>💰 Saldo: R$ <span id="saldoSimulador">1000.00</span></div>
+      <div>📊 Carteira: <span id="carteiraSimulador">0.0000</span> ações</div>
+      <div>📈 Lucro: R$ <span id="lucroSimulador">0.00</span></div>
+    </div>
+  </section>
+
+  <section id="investimentoManual">
+    <h1>💼 Investir Manualmente</h1>
+    <label for="acaoManual">Escolha uma Ação da B3:</label>
+    <select id="acaoManual">
+      <option value="PETR4.SA">PETR4</option>
+      <option value="VALE3.SA">VALE3</option>
+      <option value="ITUB4.SA">ITUB4</option>
+      <option value="B3SA3.SA">B3SA3</option>
+    </select>
+
+    <label for="valorManual">Valor a investir (R$):</label>
+    <input type="number" id="valorManual" value="100" min="1" />
+
+    <label for="emailManual">Seu e-mail para notificações:</label>
+    <input type="email" id="emailManual" placeholder="seu@email.com" />
+
+    <button onclick="investirManual()">💰 Investir Agora</button>
+
+    <canvas id="graficoManual" height="280"></canvas>
+
+    <h2>📋 Log de Investimentos Manuais:</h2>
+    <div id="logManual"></div>
+
+    <div class="status" id="statusManual">
+      <div>💰 Saldo: R$ <span id="saldoManual">1000.00</span></div>
+      <div>📊 Carteira: <span id="carteiraManual">0.0000</span> ações</div>
+      <div>📈 Lucro: R$ <span id="lucroManual">0.00</span></div>
+    </div>
+  </section>
+
+  <section id="sobre">
+    <h2>ℹ️ Sobre o Projeto</h2>
+    <p>Este simulador permite que você acompanhe e simule investimentos nas ações da B3, seja com um robô trader automático ou realizando compras manuais.</p>
+    <ul>
+      <li>Selecione ações como PETR4, VALE3, ITUB4 e B3SA3.</li>
+      <li>Defina valores para investir por operação.</li>
+      <li>Receba notificações por email via IFTTT.</li>
+      <li>Visualize gráficos interativos de preços e lucros.</li>
+      <li>Simulações baseadas em variações reais do mercado (+1% para compra automática).</li>
+    </ul>
+    <p><strong>Importante:</strong> Este projeto é apenas educativo e não representa uma corretora real. Investimentos simulados sem riscos reais.</p>
+  </section>
+
+  <section id="ajuda">
+    <h2>❓ Ajuda</h2>
+    <p><strong>Como recebo as notificações?</strong><br />
+      Configure IFTTT com Webhooks para receber alertas. Pode usar MacroDroid para enviar para Gmail.</p>
+    <p><strong>Frequência de checagem:</strong><br />
+      O bot verifica preços a cada 30 segundos e simula compra quando a variação é maior que 1%.</p>
+    <p><strong>Saldo e carteira:</strong><br />
+      Saldo é o dinheiro disponível para investir. Carteira é a quantidade de ações compradas.</p>
+    <p><strong>Os dados são reais?</strong><br />
+      Sim! Dados coletados via APIs públicas para preços da B3.</p>
+  </section>
+</main>
+<script>
+  function mostrar(secao, btn) {
+    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+    document.getElementById(secao).classList.add("active");
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }
+
+  let historicoBot = [], saldoBot = 1000, carteiraBot = 0, lucroBot = 0, chartBot;
+  let historicoManual = [], saldoManual = 1000, carteiraManual = 0, lucroManual = 0, chartManual;
+  let botRodando = false;
+  let intervaloBot;
+  const BRAPI_KEY = "kLvXmBx5NYwekiuBLY9MQ5";
+
+  async function obterPreco(ticker) {
+    try {
+      const url = `https://brapi.dev/api/quote/${ticker}?token=${BRAPI_KEY}&range=1d&interval=1d`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      return data.results[0].regularMarketPrice;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function log(msg, id) {
+    const l = document.getElementById(id);
+    l.innerText += `\n[${new Date().toLocaleTimeString()}] ${msg}`;
+    l.scrollTop = l.scrollHeight;
+  }
+
+  function atualizarGraficoBot() {
+    const labels = historicoBot.map(h => h.hora);
+    const precos = historicoBot.map(h => h.preco);
+    const lucros = historicoBot.map(h => h.lucroTotal.toFixed(2));
+
+    if (!chartBot) {
+      const ctx = document.getElementById('grafico').getContext('2d');
+      chartBot = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'Preço da Ação', data: precos, borderColor: '#1abc9c', fill: false, tension: 0.3 },
+            { label: 'Lucro Acumulado (R$)', data: lucros, borderColor: '#2980b9', fill: false, tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: false } } }
+      });
+    } else {
+      chartBot.data.labels = labels;
+      chartBot.data.datasets[0].data = precos;
+      chartBot.data.datasets[1].data = lucros;
+      chartBot.update();
+    }
+  }
+
+  function atualizarGraficoManual() {
+    const labels = historicoManual.map(h => h.hora);
+    const precos = historicoManual.map(h => h.preco);
+    const lucros = historicoManual.map(h => h.lucroTotal.toFixed(2));
+
+    if (!chartManual) {
+      const ctx = document.getElementById('graficoManual').getContext('2d');
+      chartManual = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'Preço da Ação', data: precos, borderColor: '#1abc9c', fill: false, tension: 0.3 },
+            { label: 'Lucro Acumulado (R$)', data: lucros, borderColor: '#2980b9', fill: false, tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: false } } }
+      });
+    } else {
+      chartManual.data.labels = labels;
+      chartManual.data.datasets[0].data = precos;
+      chartManual.data.datasets[1].data = lucros;
+      chartManual.update();
+    }
+  }
+
+  async function iniciarBot() {
+    if (botRodando) {
+      alert("⚠️ O bot já está rodando.");
+      return;
+    }
+
+    const ticker = document.getElementById("acao").value;
+    const valorCompra = parseFloat(document.getElementById("valor").value);
+    const email = document.getElementById("email").value.trim();
+
+    if (!email) {
+      alert("Por favor, informe um e-mail válido!");
+      return;
+    }
+
+    botRodando = true;
+    log(`🤖 Bot iniciado para ação ${ticker}`, "log");
+
+    let ultimoPreco = await obterPreco(ticker);
+    if (!ultimoPreco) {
+      log("❌ Erro ao obter o preço inicial.", "log");
+      botRodando = false;
+      return;
+    }
+
+    intervaloBot = setInterval(async () => {
+      const precoAtual = await obterPreco(ticker);
+      if (!precoAtual) {
+        log("❌ Erro ao obter preço da ação.", "log");
         return;
       }
 
-      try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        const signer = provider.getSigner();
-        const address = await signer.getAddress();
-        const contract = new ethers.Contract(UNISWAP_ROUTER, ABI, signer);
+      const variacao = ((precoAtual - ultimoPreco) / ultimoPreco) * 100;
+      const hora = new Date().toLocaleTimeString();
 
-        const ethValue = "0.000027"; // ~R$1
-        const deadline = Math.floor(Date.now() / 1000) + 600;
+      if (historicoBot.length > 20) historicoBot.shift();
+      historicoBot.push({ hora, preco: precoAtual, lucroTotal: lucroBot });
 
-        const tx = await contract.swapExactETHForTokens(
-          0,
-          [WETH, STETH],
-          address,
-          deadline,
-          {
-            value: ethers.utils.parseEther(ethValue),
-            gasLimit: 250000
-          }
-        );
+if (variacao >= 1 && saldoBot >= valorCompra) {
+  saldoBot -= valorCompra;
+  carteiraBot += valorCompra / precoAtual;
+  lucroBot = (carteiraBot * precoAtual + saldoBot) - 1000;
 
-        status.innerText = "⏳ Transação enviada: " + tx.hash;
-        await tx.wait();
-        status.innerText = "✅ Swap finalizado!";
-      } catch (e) {
-        console.error(e);
-        status.innerText = "❌ Erro: " + (e?.data?.message || e.message);
+  log(`✅ Compra R$${valorCompra.toFixed(2)} a R$${precoAtual.toFixed(2)}. Saldo: R$${saldoBot.toFixed(2)} Lucro: R$${lucroBot.toFixed(2)}`, "log");
+
+  notificar("Bot Trader - Compra realizada", `Compra de ${ticker} a R$${precoAtual.toFixed(2)}.\nLucro: R$${lucroBot.toFixed(2)}`);
+
+  fetch("https://maker.ifttt.com/trigger/a1/with/key/ch9aXn92wW2g7gCZR6X6Eh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      value1: `Bot Trader: Compra de ${ticker} a R$${precoAtual.toFixed(2)}. Lucro: R$${lucroBot.toFixed(2)}. Email: ${email}`
+    })
+  });
+      } else {
+        log(`ℹ️ Preço variou ${variacao.toFixed(2)}% - sem compra.`, "log");
       }
-    }
 
-    window.onload = iniciarSwap;
-  </script>
-</body>
-</html>
+      ultimoPreco = precoAtual;
+      atualizarGraficoBot();
+      document.getElementById("saldoSimulador").innerText = saldoBot.toFixed(2);
+      document.getElementById("carteiraSimulador").innerText = carteiraBot.toFixed(4);
+      document.getElementById("lucroSimulador").innerText = lucroBot.toFixed(2);
+    }, 30000); // Checa a cada 30 segundos
+    salvarFirebase();
+  }
+
+  async function investirManual() {
+    const ticker = document.getElementById("acaoManual").value;
+    const valorInvestir = parseFloat(document.getElementById("valorManual").value);
+    const email = document.getElementById("emailManual").value.trim();
+
+    if (!email) return alert("Informe um e-mail válido!");
+    if (valorInvestir <= 0) return alert("Informe um valor válido para investir!");
+    if (valorInvestir > saldoManual) return alert("Saldo insuficiente para este investimento!");
+
+    const precoAtual = await obterPreco(ticker);
+    if (precoAtual === null) return alert("Erro ao obter preço da ação.");
+
+    const quantidade = valorInvestir / precoAtual;
+    saldoManual -= valorInvestir;
+    carteiraManual += quantidade;
+    const valorCarteira = carteiraManual * precoAtual;
+    lucroManual = valorCarteira + saldoManual - 1000;
+    const hora = new Date().toLocaleTimeString();
+
+    if (historicoManual.length > 20) historicoManual.shift();
+    historicoManual.push({ hora, preco: precoAtual, lucroTotal: lucroManual });
+
+    log(`💰 Investimento manual de R$${valorInvestir.toFixed(2)} em ${ticker} realizado. Saldo: R$${saldoManual.toFixed(2)} Lucro: R$${lucroManual.toFixed(2)}`, "logManual");
+
+notificar("Investimento Manual Realizado", `${ticker} comprado a R$${precoAtual.toFixed(2)}.\nLucro: R$${lucroManual.toFixed(2)}`);
+
+fetch("https://maker.ifttt.com/trigger/a1/with/key/ch9aXn92wW2g7gCZR6X6Eh", {
+  method: "POST",
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    value1: `Investimento manual de ${ticker} a R$${precoAtual.toFixed(2)} - Lucro: R$${lucroManual.toFixed(2)}`
+  })
+});
+
+
+    atualizarGraficoManual();
+    document.getElementById("saldoManual").innerText = saldoManual.toFixed(2);
+    document.getElementById("carteiraManual").innerText = carteiraManual.toFixed(4);
+    document.getElementById("lucroManual").innerText = lucroManual.toFixed(2);
+  }
+async function logar() {
+  const email = document.getElementById("usuario").value.trim();
+  const senha = document.getElementById("senha").value.trim();
+
+  try {
+    const cred = await firebase.auth().signInWithEmailAndPassword(email, senha);
+    iniciarApp(cred.user);
+  } catch (e) {
+    if (e.code === 'auth/user-not-found') {
+      const cred = await firebase.auth().createUserWithEmailAndPassword(email, senha);
+      await firebase.database().ref("usuarios/" + cred.user.uid).set({ saldo: 1000, carteira: 0, lucro: 0 });
+      iniciarApp(cred.user);
+    } else {
+      document.getElementById("erroLogin").innerText = e.message;
+    }
+  }
+}
+let userAtual = null;
+let dadosUsuario = { saldo: 1000, carteira: 0, lucro: 0 };
+
+async function iniciarApp(user) {
+  userAtual = user;
+  document.getElementById("loginContainer").style.display = "none";
+document.querySelector("main").style.display = "block";
+  const snap = await firebase.database().ref("usuarios/" + user.uid).once("value");
+  if (snap.exists()) dadosUsuario = snap.val();
+
+  // Inicializa os saldos com os dados salvos no Firebase
+  saldoBot = dadosUsuario.saldo;
+  carteiraBot = dadosUsuario.carteira;
+  lucroBot = dadosUsuario.lucro;
+
+  saldoManual = dadosUsuario.saldo;
+  carteiraManual = dadosUsuario.carteira;
+  lucroManual = dadosUsuario.lucro;
+
+  atualizarUI();
+}
+
+// Notificações Push Web (popup)
+function solicitarPermissaoNotificacao() {
+  if ("Notification" in window) {
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== "granted") {
+        console.log("🔕 Notificações não permitidas");
+      }
+    });
+  }
+}
+
+function notificar(titulo, corpo) {
+  if (Notification.permission === "granted") {
+    new Notification(titulo, { body: corpo, icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png" });
+  }
+}
+function salvarFirebase() {
+  if (userAtual) {
+    firebase.database().ref("usuarios/" + userAtual.uid).set({
+      saldo: saldoBot,
+      carteira: carteiraBot,
+      lucro: lucroBot
+    });
+  } else {
+    // Usuário não logado, não salva nada (ou salvar localStorage, se quiser)
+  }
+}
+
+function usarConvidado() {
+  userAtual = null;  // Não há usuário logado
+  dadosUsuario = { saldo: 1000, carteira: 0, lucro: 0 };
+  saldoBot = dadosUsuario.saldo;
+  carteiraBot = dadosUsuario.carteira;
+  lucroBot = dadosUsuario.lucro;
+  saldoManual = dadosUsuario.saldo;
+  carteiraManual = dadosUsuario.carteira;
+  lucroManual = dadosUsuario.lucro;
+
+  document.getElementById("loginContainer").style.display = "none";
+  document.querySelector("main").style.display = "block";
+  atualizarUI();
+}
+
+    </script>
